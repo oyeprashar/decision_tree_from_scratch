@@ -55,7 +55,7 @@ class DecisionTree:
 
         num_of_samples, num_of_featues = X_train.shape
         num_of_lables = len(np.unique(y_train))
-        self.generate_tree(X_train, y_train)
+        self.root = self.generate_tree(X_train, y_train)
 
 
     def generate_tree(self, X_train, y_train, depth = 0):
@@ -82,13 +82,14 @@ class DecisionTree:
 
         currNode = Node()
         currNode.feature = best_feature_index
+        currNode.threshold = best_threshold
 
         # training example is  divided into left (where the predicate over the best feature matches) and right side( other wise)
         left_features_indices, right_features_indices = self.split_features(X_train[:,best_feature_index], best_threshold)
 
         # since y_train is also np array, is left_features_indices is array, it will give all the corresponding labels
-        currNode.left = self.generate_tree(X_train[left_features_indices:], y_train[left_features_indices], depth + 1)
-        currNode.right = self.generate_tree(X_train[right_features_indices:], y_train[right_features_indices], depth + 1)
+        currNode.left = self.generate_tree(X_train[left_features_indices, :], y_train[left_features_indices], depth + 1)
+        currNode.right = self.generate_tree(X_train[right_features_indices, :], y_train[right_features_indices], depth + 1)
 
         return currNode
 
@@ -155,21 +156,20 @@ class DecisionTree:
     def predict(self, X):
         predictions = np.array([])
         for x in X:
-            np.append(predictions, self.traverse(self.root, x))
-
+            predictions = np.append(predictions, self.traverse(self.root, x))
         return predictions
 
 
     def traverse(self, root, x):
 
-        if root.is_leaf_node() :
+        if root.is_leaf_node():
             return root.label
 
         # node contains the feture it wants to compare with the threshold
-        if x[root.feture] <= root.threshold:
+        if x[root.feature] <= root.threshold:
             return self.traverse(root.left, x)
         else:
-            self.traverse(root.right, x)
+            return self.traverse(root.right, x)
 
 
 
