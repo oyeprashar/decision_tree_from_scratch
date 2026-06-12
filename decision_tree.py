@@ -43,7 +43,6 @@ class DecisionTree:
         # is made from randomly choosing 2 features out of 3
         # all predicates will be based on these two choosen features. None == consider all features
         self.features_per_split = n_features
-
         self.root = None
 
     def fit(self, X_train, y_train):
@@ -53,16 +52,12 @@ class DecisionTree:
         else:
             self.features_per_split = min(X_train.shape[1], self.features_per_split)
 
-        num_of_samples, num_of_featues = X_train.shape
-        num_of_lables = len(np.unique(y_train))
         self.root = self.generate_tree(X_train, y_train)
-
 
     def generate_tree(self, X_train, y_train, depth = 0):
 
         num_of_samples, num_of_features = X_train.shape
         num_of_unique_labels = len(np.unique(y_train))
-
 
         # num_of_unique_labels == 1 -> all the samples can have this label! Pure leaf
         if depth >= self.max_depth or num_of_unique_labels == 1 or num_of_samples < self.min_samples_split:
@@ -82,7 +77,7 @@ class DecisionTree:
 
         currNode = Node()
         currNode.feature = best_feature_index
-        currNode.threshold = best_threshold
+        currNode.threshold = best_threshold # This is the column index
 
         # training example is  divided into left (where the predicate over the best feature matches) and right side( other wise)
         left_features_indices, right_features_indices = self.split_features(X_train[:,best_feature_index], best_threshold)
@@ -90,15 +85,12 @@ class DecisionTree:
         # since y_train is also np array, is left_features_indices is array, it will give all the corresponding labels
         currNode.left = self.generate_tree(X_train[left_features_indices, :], y_train[left_features_indices], depth + 1)
         currNode.right = self.generate_tree(X_train[right_features_indices, :], y_train[right_features_indices], depth + 1)
-
         return currNode
-
 
     def split_features(self, X_column, best_threshold):
         left_row_indices = np.argwhere(X_column <= best_threshold).flatten()
         right_row_indices = np.argwhere(X_column > best_threshold).flatten()
         return left_row_indices, right_row_indices
-
 
     def select_best_feature_to_split(self, X_train, y_train, chosen_features):
 
@@ -112,14 +104,11 @@ class DecisionTree:
             threshold_candidates = np.unique(X_column)
 
             for candidate_threshold in threshold_candidates:
-
                 gain = self.compute_information_gain(candidate_threshold, X_column, y_train)
-
                 if gain > best_gain:
                     best_gain = gain
                     split_index = feature_index
                     split_threshold  = candidate_threshold
-
 
         return split_index, split_threshold
 
@@ -165,14 +154,11 @@ class DecisionTree:
         if root.is_leaf_node():
             return root.label
 
-        # node contains the feture it wants to compare with the threshold
+        # x is a single example and root.feature is col index
+        # we find what the value is at that one example's root.feature index
+        # this will be a single value which we compare with the threshold at the current node
         if x[root.feature] <= root.threshold:
             return self.traverse(root.left, x)
         else:
             return self.traverse(root.right, x)
-
-
-
-
-
 
