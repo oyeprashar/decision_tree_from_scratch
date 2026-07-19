@@ -102,10 +102,10 @@ class DecisionTree:
         best_split_feature_index = None
         best_split_feature_threshold = None
 
-        for col_index in candidate_features_indices:
+        for feature_index in candidate_features_indices:
 
             # all rows for this col_index
-            feature_col_data_all_rows = X_train[:, col_index]
+            feature_col_data_all_rows = X_train[:, feature_index]
             possible_thresholds = np.unique(feature_col_data_all_rows)
 
             for threshold in possible_thresholds:
@@ -115,7 +115,7 @@ class DecisionTree:
                 # step 2 : save it if its better
                 if information_gain > best_gain:
                     best_gain = information_gain
-                    best_split_feature_index = col_index
+                    best_split_feature_index = feature_index
                     best_split_feature_threshold = threshold
 
         return best_split_feature_index, best_split_feature_threshold, best_gain
