@@ -78,16 +78,14 @@ class DecisionTree:
 
     def information_gain(self, feature_col_data_all_rows, y_train, threshold):
 
-        left_y_train_indices, right_y_train_indices = self.split_based_on_predicate(feature_col_data_all_rows,
-                                                                                    threshold)
+        left_y_train_indices, right_y_train_indices = self.split_based_on_predicate(feature_col_data_all_rows,threshold)
 
         # to avoid division by zero error
         if len(left_y_train_indices) == 0 or len(right_y_train_indices) == 0:
             return 0
 
         entropy_parent = self.compute_entropy(y_train)
-        left_entropy = self.compute_entropy(
-            y_train[left_y_train_indices])  # the labels corresponding to rows of X are at col of y
+        left_entropy = self.compute_entropy(y_train[left_y_train_indices])  # the labels corresponding to rows of X are at col of y
         right_entropy = self.compute_entropy(y_train[right_y_train_indices])
 
         # information gain = parent entropy - weighted entropy of children
@@ -149,12 +147,10 @@ class DecisionTree:
             return leaf_node
 
         # step 1 : pick the candidate features
-        candidate_features_indices = np.random.choice(number_of_features, self.candidate_features_per_split,
-                                                      replace=False)
+        candidate_features_indices = np.random.choice(number_of_features, self.candidate_features_per_split, replace=False)
 
         # step 2 : out of these candidate features compute the best feature and its threshold <-- based on information gain
-        best_feature_index, best_threshold, best_gain = self.get_best_feature_and_threshold_for_split(X_train, y_train,
-                                                                                                      candidate_features_indices)
+        best_feature_index, best_threshold, best_gain = self.get_best_feature_and_threshold_for_split(X_train, y_train, candidate_features_indices)
 
         if best_gain <= 0:
             leaf_node = Node()
@@ -168,8 +164,7 @@ class DecisionTree:
 
         # step 4 : split the data based on the predicate and left and right of this new node will be generated recursively
 
-        left_row_indices, right_row_indices = self.split_based_on_predicate(X_train[:, best_feature_index],
-                                                                            best_threshold)
+        left_row_indices, right_row_indices = self.split_based_on_predicate(X_train[:, best_feature_index], best_threshold)
 
         # [left_row_indices, :] <-- select these rows and all the columns
         currNode.left = self.generate_tree(X_train[left_row_indices, :], y_train[left_row_indices], depth + 1)
