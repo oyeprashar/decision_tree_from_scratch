@@ -1,164 +1,179 @@
+"""
+Implement Decision Tree
+"""
+
 import numpy as np
 from collections import Counter
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
 
 
 class Node:
-
-    # Node(label=5) works because we added the * before it
-    # this helps in creating a leaf node without passing other arugment
-    def __init__(self, left = None, right = None, threshold = None, feature = None, *, label = None):
-        self.left = left
-        self.right = right
-
-        # label if this node is a leaf node
-        self.label = label #
-
-        # the predicate this node uses to direct to flow to left or rigt
-        self.threshold = threshold
-
-        # The feature we are using to split
-        # ex the root was language and this node uses python to split
-        self.feature = feature
-
-
-    def is_leaf_node(self):
-        return self.label is not None
-
-
-def most_common_label(y_train):
-    # Give me the top 1 most frequent item.
-    return Counter(y_train).most_common(1)[0][0] # (label, count)
+    def __init__(self):
+        self.feature_index = None
+        self.split_threshold = None
+        self.label = None
+        self.left = None
+        self.right = None
 
 
 class DecisionTree:
-    def __init__(self, min_samples_split = 2, max_depth = 100, n_features = None):
 
-        # if after all the predicates from the root have been applied
-        # the num of training examples reaches node n > min_samples_split then we split
-        self.min_samples_split = min_samples_split
+    def __init__(self, max_depth=100, min_samples_split=2, candidate_features_per_split=None):
         self.max_depth = max_depth
-
-        # The number of features you consider to make the predicates based on them
-        # ex if features where [salary, dob, experience] and we say 2 then whole tree
-        # is made from randomly choosing 2 features out of 3
-        # all predicates will be based on these two choosen features. None == consider all features
-        self.features_per_split = n_features
-        self.root = None
+        self.candidate_features_per_split = candidate_features_per_split
+        self.min_samples_split = min_samples_split
+        self.root = None  # saved when we train and generate the actual tree
 
     def fit(self, X_train, y_train):
 
-        if self.features_per_split is None:
-            self.features_per_split = X_train.shape[1]
+        # all the features are considered to figure out the best feature
+        if self.candidate_features_per_split is None:
+            self.candidate_features_per_split = X_train.shape[1]
         else:
-            self.features_per_split = min(X_train.shape[1], self.features_per_split)
+            # we need to make sure candidate_features_per_split is not greater than number of features as we will be
+            # using np.random.choice which breaks when we ask it to pick 10 things from a list of 5!
+            self.candidate_features_per_split = min(self.candidate_features_per_split, X_train.shape[1])
 
         self.root = self.generate_tree(X_train, y_train)
 
-    def generate_tree(self, X_train, y_train, depth = 0):
-
-        num_of_samples, num_of_features = X_train.shape
-        num_of_unique_labels = len(np.unique(y_train))
-
-        # num_of_unique_labels == 1 -> all the samples can have this label! Pure leaf
-        if depth >= self.max_depth or num_of_unique_labels == 1 or num_of_samples < self.min_samples_split:
-            # for the current path i have reached the depth
-            # i need to add a node with label for this branch
-            common_label = most_common_label(y_train)
-            return Node(label=common_label)
-
-        # choosing the features to split on for the current node
-        # replace = False means we select unique feature randomly and same feature is not picked more than once
-        chosen_features = np.random.choice(num_of_features, self.features_per_split, replace = False)
-
-        # Which feature is best to split on based on the information gain?
-        # What is the threshold/predicate we need to make this split possible
-        best_feature_index, best_threshold = self.select_best_feature_to_split(X_train, y_train, chosen_features)
-
-
-        currNode = Node()
-        currNode.feature = best_feature_index
-        currNode.threshold = best_threshold # This is the column index
-
-        # training example is  divided into left (where the predicate over the best feature matches) and right side( other wise)
-        left_features_indices, right_features_indices = self.split_features(X_train[:,best_feature_index], best_threshold)
-
-        # since y_train is also np array, is left_features_indices is array, it will give all the corresponding labels
-        currNode.left = self.generate_tree(X_train[left_features_indices, :], y_train[left_features_indices], depth + 1)
-        currNode.right = self.generate_tree(X_train[right_features_indices, :], y_train[right_features_indices], depth + 1)
-        return currNode
-
-    def split_features(self, X_column, best_threshold):
-        left_row_indices = np.argwhere(X_column <= best_threshold).flatten()
-        right_row_indices = np.argwhere(X_column > best_threshold).flatten()
-        return left_row_indices, right_row_indices
-
-    def select_best_feature_to_split(self, X_train, y_train, chosen_features):
-
-        # chosen_features are chosen at random
-        # we need to return the best feature to split on and the threshold
-        best_gain = -1
-        split_index, split_threshold = None, None
-
-        for feature_index in chosen_features:
-            X_column = X_train[:, feature_index]
-            threshold_candidates = np.unique(X_column)
-
-            for candidate_threshold in threshold_candidates:
-                gain = self.compute_information_gain(candidate_threshold, X_column, y_train)
-                if gain > best_gain:
-                    best_gain = gain
-                    split_index = feature_index
-                    split_threshold  = candidate_threshold
-
-        return split_index, split_threshold
-
-    # compute_information_gain : how much uncertainty the split removes
-    def compute_information_gain(self, candidate_threshold, X_column, y_train):
-
-        # gain(split) = entropy(root) - weighted sum of entropy of the child
-
-        parent_entropy = self.entropy(y_train)
-        left_row_indices, right_row_indices = self.split_features(X_column, candidate_threshold)
-
-        if len(left_row_indices) == 0 or len(right_row_indices) == 0:
-            return 0
-
-        left_entropy = self.entropy(y_train[left_row_indices])
-        right_entropy = self.entropy(y_train[right_row_indices])
-        total_length = len(y_train)
-        left_length = len(left_row_indices)
-        right_length = len(right_row_indices)
-        child_entropy =  ((left_length/total_length) * left_entropy) + ((right_length/total_length) * right_entropy)
-        return parent_entropy - child_entropy
-
-    def entropy(self, y_train):
-
-        # for exactly two classes :  - (p+)log2(p+) - (p-)log2(p-)
-        # for more than two classes : entropy = -sum(p_i * log(p_i))
-        freq_per_class = np.bincount(y_train)
-        proportions = freq_per_class / len(y_train)
-
-        # entropy = -sum(p_i * log(p_i))
-        return  - np.sum([p * np.log(p) for p in proportions if p > 0])
-
-
     def predict(self, X):
-        predictions = np.array([])
-        for x in X:
-            predictions = np.append(predictions, self.traverse(self.root, x))
+        predictions = []
+        for example in X:
+            predictions.append(self.traverse(example, self.root))
         return predictions
 
+    def traverse(self, X, root):
 
-    def traverse(self, root, x):
-
-        if root.is_leaf_node():
+        if root.label is not None:
             return root.label
 
-        # x is a single example and root.feature is col index
-        # we find what the value is at that one example's root.feature index
-        # this will be a single value which we compare with the threshold at the current node
-        if x[root.feature] <= root.threshold:
-            return self.traverse(root.left, x)
-        else:
-            return self.traverse(root.right, x)
+        feature_index = root.feature_index
+        threshold = root.split_threshold
 
+        # Since we are processing example by example, this is 1D array
+        # and we can access the column of 1D array like this
+        if X[feature_index] <= threshold:
+            return self.traverse(X, root.left)
+        else:
+            return self.traverse(X, root.right)
+
+    def most_common_label(self, y):
+        return Counter(y).most_common()[0][0]  # (label, count)
+
+    def compute_entropy(self, y):
+
+        """
+        entropy = -(p+)log(p+) - (p-)log(p-) <--- here p is proportions
+
+        for more than 2 classes the formula becomes :
+            entropy = - summation ( p_class * log(p_class))
+        """
+
+        freq_per_class = np.bincount(y)
+        proportions = freq_per_class / len(y)
+
+        # if p > 0 because log(0) will be inf
+        return - np.sum([p * np.log(p) for p in proportions if p > 0])
+
+    def information_gain(self, feature_col_data_all_rows, y_train, threshold):
+
+        left_y_train_indices, right_y_train_indices = self.split_based_on_predicate(feature_col_data_all_rows,
+                                                                                    threshold)
+
+        # to avoid division by zero error
+        if len(left_y_train_indices) == 0 or len(right_y_train_indices) == 0:
+            return 0
+
+        entropy_parent = self.compute_entropy(y_train)
+        left_entropy = self.compute_entropy(
+            y_train[left_y_train_indices])  # the labels corresponding to rows of X are at col of y
+        right_entropy = self.compute_entropy(y_train[right_y_train_indices])
+
+        # information gain = parent entropy - weighted entropy of children
+        children_entropy = (len(left_y_train_indices) / len(y_train)) * left_entropy + (
+                    len(right_y_train_indices) / len(y_train)) * right_entropy
+        return entropy_parent - children_entropy
+
+    def get_best_feature_and_threshold_for_split(self, X_train, y_train, candidate_features_indices):
+
+        """
+            * We will process all the candidate features
+            * There possible thresholds is set of unique values the feature takes across the dataset
+            * We save the value and feature that gives the best information gain
+        """
+
+        best_gain = -1
+        best_split_feature_index = None
+        best_split_feature_threshold = None
+
+        for col_index in candidate_features_indices:
+
+            # all rows for this col_index
+            feature_col_data_all_rows = X_train[:, col_index]
+            possible_thresholds = np.unique(feature_col_data_all_rows)
+
+            for threshold in possible_thresholds:
+                # step 1 : compute the information gain
+                information_gain = self.information_gain(feature_col_data_all_rows, y_train, threshold)
+
+                # step 2 : save it if its better
+                if information_gain > best_gain:
+                    best_gain = information_gain
+                    best_split_feature_index = col_index
+                    best_split_feature_threshold = threshold
+
+        return best_split_feature_index, best_split_feature_threshold, best_gain
+
+    def split_based_on_predicate(self, x, threshold):
+        """
+        x : is 1D array since X_train[:, best_feature_index] == 1D array
+        It contains value of that best split feature for all the rows
+
+        threshold : left is all the rows <= threshold and rest is right
+        """
+
+        left_row_indices = np.argwhere(x <= threshold).flatten()
+        right_row_indices = np.argwhere(x > threshold).flatten()
+
+        return left_row_indices, right_row_indices
+
+    def generate_tree(self, X_train, y_train, depth=0):
+
+        number_of_examples, number_of_features = X_train.shape[0], X_train.shape[1]
+
+        # base case : return a leaf node
+        if len(np.unique(y_train)) == 1 or depth >= self.max_depth or number_of_examples < self.min_samples_split:
+            leaf_node = Node()
+            leaf_node.label = self.most_common_label(y_train)
+            return leaf_node
+
+        # step 1 : pick the candidate features
+        candidate_features_indices = np.random.choice(number_of_features, self.candidate_features_per_split,
+                                                      replace=False)
+
+        # step 2 : out of these candidate features compute the best feature and its threshold <-- based on information gain
+        best_feature_index, best_threshold, best_gain = self.get_best_feature_and_threshold_for_split(X_train, y_train,
+                                                                                                      candidate_features_indices)
+
+        if best_gain <= 0:
+            leaf_node = Node()
+            leaf_node.label = self.most_common_label(y_train)
+            return leaf_node
+
+        # step 3 : The current node will hold this feature's index and threshold
+        currNode = Node()
+        currNode.feature_index = best_feature_index
+        currNode.split_threshold = best_threshold
+
+        # step 4 : split the data based on the predicate and left and right of this new node will be generated recursively
+
+        left_row_indices, right_row_indices = self.split_based_on_predicate(X_train[:, best_feature_index],
+                                                                            best_threshold)
+
+        # [left_row_indices, :] <-- select these rows and all the columns
+        currNode.left = self.generate_tree(X_train[left_row_indices, :], y_train[left_row_indices], depth + 1)
+        currNode.right = self.generate_tree(X_train[right_row_indices, :], y_train[right_row_indices], depth + 1)
+
+        # step 5 : return current node
+        return currNode
