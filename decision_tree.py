@@ -149,6 +149,7 @@ class DecisionTree:
         # step 2 : out of these candidate features compute the best feature and its threshold <-- based on information gain
         best_feature_index, best_threshold, best_gain = self.get_best_feature_and_threshold_for_split(X_train, y_train, candidate_features_indices)
 
+        # No best gain? or worse gain? Make a leaf rather than splitting!
         if best_gain <= 0:
             leaf_node = Node()
             leaf_node.label = self.most_common_label(y_train)
