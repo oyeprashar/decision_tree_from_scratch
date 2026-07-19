@@ -4,9 +4,6 @@ Implement Decision Tree
 
 import numpy as np
 from collections import Counter
-from sklearn import datasets
-from sklearn.model_selection import train_test_split
-
 
 class Node:
     def __init__(self):
